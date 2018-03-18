@@ -70,9 +70,7 @@
 # writelog ueber Flag ein-/ausschalten
 
 '''
-
 ${workspace_loc:KUKA_OT_Export/src/KUKA_Tools.py}
-
 KUKA_Tools add-on
 bpy.data.curves[bpy.context.active_object.data.name].splines[0].bezier_points[0].co=(0,1,1)
 '''  
@@ -80,19 +78,19 @@ bpy.data.curves[bpy.context.active_object.data.name].splines[0].bezier_points[0]
 bl_info = { 
     "name": "KUKA_OT_Export",
     "author": "Eric Wahl",
-    "version": (1, 0, 1),
-    "blender": (2, 5, 7),
+    "version": (1, 0, 2),
+    "blender": (2, 7, 9),
     "api": 36147,
     "location": "View3D >Objects >KUKA_Tools",
     "category": "Curve",
-    "description": "Import/ Editing/ Export Kuka Bahnkurve",
+    "description": "Import/ Editing/ Export Kuka Bahnkurve, KUKA-Tools2916 from 29.Nov.2016",
     "warning": "",
     "wiki_url": "http://...",
     "tracker_url": "http://..."
     }
 
 
-import pydevd;pydevd.settrace() # notwendig weil breakpoints uebersprungen werden. warum auch immer
+#import pydevd;pydevd.settrace() # notwendig weil breakpoints uebersprungen werden. warum auch immer
      
 #--- ### Imports
 
@@ -152,18 +150,15 @@ def writelog(text=''):
 
         
 '''
-
 Beschreibung:
 Die location-Values des aktiven Objektes sollen in Abhaengigkeit des unter 'kuka.ORIGINType' ausgewaehlten Koordinatensystems 
 a) richtig angezeigt werden
 b) editierbar sein
 Vorgehensweise:
 1. ob = aktives Objekt der Szene
-
 unterscheide zwischen Anzeige und Eingabe:
 Anzeige:
 die permanente Anzeige unter 'Panel' muss 'kuka.ORIGINType' beruecksichtigen. D.h. die Berechnung muss im Panel selber erfolgen.
-
 Eingabe:
 Bei Eingabe erfolgt der Ausruf der 'update_GUIloc' Funktion:
 2. IF kuka.ORIGINType == z.B. BASEPos:
