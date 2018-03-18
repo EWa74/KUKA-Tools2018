@@ -69,7 +69,7 @@
 # TODO: GUI Feld um die Winkel bezogen auf Base oder Tool (bez. sich auf Base) editieren zu koennen
 # writelog ueber Flag ein-/ausschalten
 
-''' 
+'''  
 ${workspace_loc:KUKA_OT_Export/src/KUKA_Tools.py}
 KUKA_Tools add-on
 bpy.data.curves[bpy.context.active_object.data.name].splines[0].bezier_points[0].co=(0,1,1)
