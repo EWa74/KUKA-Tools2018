@@ -102,7 +102,7 @@ from bpy_extras.io_utils import ImportHelper
 import time # um Zeitstempel im Logfile zu schreiben
 import bpy, os
 import sys
-from bpy.utils import register_module, unregister_module
+#B2.80 Fehler - from bpy.utils import register_module, unregister_module
 from bpy.props import FloatProperty, IntProperty, CollectionProperty, EnumProperty, StringProperty
 from mathutils import Vector  
 from mathutils import *
@@ -114,6 +114,7 @@ from bpy.types import Operator, Panel, UIList
 from symbol import except_clause
 from copy import deepcopy # fuer OptimizeRotation
 import fnmatch
+
 
 #blender myscene.blend --background --python myscript.py
 
@@ -408,13 +409,13 @@ def count_PATHPTSObj(PATHPTSObjName):
     writelog('count_PATHPTSObj')
     writelog('_____________________________________________________________________________')
     return PATHPTSObjList, countPATHPTSObj
-    
+      
 class ObjectSettings(bpy.types.PropertyGroup): # self, context, 
     
     # Access it e.g. like
     # bpy.context.object.kuka.PATHPTS
     
-    
+    #
         
     ID = bpy.props.IntProperty()
     # type: BASEPos, PTP, HOMEPos, ADJUSTMENTPos
@@ -2341,23 +2342,48 @@ class CustomProp(bpy.types.PropertyGroup):
 
 # ________________________________________________________________________________________________________________________
 
-
+classes = (
+    set_locrot,
+    get_rel_locrot,
+    ObjectSettings,
+    createMatrix,
+    KUKA_OT_InitBlendFile,
+    KUKA_OT_Export,
+    KUKA_OT_Import,
+    KUKA_OT_SelectPath,
+    KUKA_OT_RefreshButton,
+    KUKA_OT_animateptps,
+    Uilist_actions,
+    Uilist_selectListItemInScene,
+    Uilist_selectSceneItemInList,
+    UL_items,
+    KUKA_PT_Panel,
+    Uilist_getPTPsFromScene,
+    Uilist_loadFileList,
+    CustomProp,
+)
+register, unregister = bpy.utils.register_classes_factory(classes)
    
 def register():
-    bpy.utils.register_module(__name__)
-    bpy.types.Scene.custom = CollectionProperty(type=CustomProp)
-    bpy.types.Scene.custom_index = IntProperty()
-    bpy.types.Scene.pathname = StringProperty()
-    
-    
+    for c in __classes__:
+        
+        bpy.utils.register_module(__name__)
+        bpy.types.Scene.custom = CollectionProperty(type=CustomProp)
+        bpy.types.Scene.custom_index = IntProperty()
+        bpy.types.Scene.pathname = StringProperty()
+
 def unregister():
-    bpy.utils.unregister_module(__name__)
-    del bpy.types.Scene.custom
-    del bpy.types.Scene.custom_index
-    del bpy.types.Scene.pathname
+    for c in reversed(__classes__):
+    
+        bpy.types.Scene.custom.unregister_class(c)
+        bpy.types.Scene.custom_index.unregister_class(c)
+        bpy.types.Scene.pathname.unregister_class(c)
+    
+#if __name__ == "__main__":
+#    register()
 
-if __name__ == "__main__":
-    register()
-
-
+if __name__ == "__main__":  # only for live edit.
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
     
