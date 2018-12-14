@@ -79,7 +79,7 @@ bl_info = {
     "name": "KUKA_OT_Export",
     "author": "Eric Wahl",
     "version": (1, 0, 2),
-    "blender": (2, 7, 9),
+    "blender": (2, 80, 0),
     "api": 36147,
     "location": "View3D >Objects >KUKA_Tools",
     "category": "Curve",
@@ -275,7 +275,10 @@ def get_relative(dataPATHPTS_Loc, dataPATHPTS_Rot, BASEPos_Koord, BASEPos_Angle)
     MrotX = mathutils.Matrix.Rotation(BASEPos_Angle[0], 3, 'X') # Global
     MrotY = mathutils.Matrix.Rotation(BASEPos_Angle[1], 3, 'Y')
     MrotZ = mathutils.Matrix.Rotation(BASEPos_Angle[2], 3, 'Z')
-    Mrot = MrotZ * MrotY * MrotX
+    
+    #B2.79 - Mrot = MrotZ * MrotY * MrotX
+    Mrot = MrotZ @ MrotY @ MrotX
+    
     writelog('Mrot :'+ str(Mrot))
     
     Mworld_rel = Mtrans * Mrot.to_4x4()
@@ -283,17 +286,27 @@ def get_relative(dataPATHPTS_Loc, dataPATHPTS_Rot, BASEPos_Koord, BASEPos_Angle)
     Mrot_absX = mathutils.Matrix.Rotation(dataPATHPTS_Rot[0], 3, 'X') # Global
     Mrot_absY = mathutils.Matrix.Rotation(dataPATHPTS_Rot[1], 3, 'Y')
     Mrot_absZ = mathutils.Matrix.Rotation(dataPATHPTS_Rot[2], 3, 'Z')  
-    Mrot_abs = Mrot_absZ * Mrot_absY * Mrot_absX
+    
+    # B2.79 - Mrot_abs = Mrot_absZ * Mrot_absY * Mrot_absX
+    Mrot_abs = Mrot_absZ @ Mrot_absY @ Mrot_absX
+    
+    
     writelog('Mrot_abs :'+ str(Mrot_abs))
     #--------------------------------------------------------------------------
      
     #PATHPTS_Koord = matrix_world.inverted() *point_local    # transpose fuehrt zu einem andren Ergebnis?!
-    Vtrans_rel   = Mworld_rel.inverted() *Vtrans_abs  
+    # B2.79 - Vtrans_rel   = Mworld_rel.inverted() *Vtrans_abs  
+    Vtrans_rel   = Mworld_rel.inverted() @ Vtrans_abs  
+    
+    
     PATHPTS_Koord = Vtrans_rel
     
     writelog('PATHPTS_Koord : '+ str(PATHPTS_Koord))           # neuer Bezugspunkt
     
-    Mrot_rel = Mrot.inverted()  * Mrot_abs 
+    # B2.79 - Mrot_rel = Mrot.inverted()  * Mrot_abs 
+    Mrot_rel = Mrot.inverted()  @ Mrot_abs 
+    
+    
     writelog('Mrot_rel'+ str(Mrot_rel))
     
     newR = Mrot_rel.to_euler('XYZ')
@@ -342,18 +355,30 @@ def get_absolute(Obj_Koord, Obj_Angle, objBase, BASEPos_Koord, BASEPos_Angle):
     MrotX = mathutils.Matrix.Rotation(BASEPos_Angle[0], 3, 'X') # C = -179 Global
     MrotY = mathutils.Matrix.Rotation(BASEPos_Angle[1], 3, 'Y') # B = -20
     MrotZ = mathutils.Matrix.Rotation(BASEPos_Angle[2], 3, 'Z') # A = -35
-    Mrot = MrotZ * MrotY * MrotX
+    
+    # B2.79 - Mrot = MrotZ * MrotY * MrotX
+    Mrot = MrotZ @ MrotY @ MrotX
+    
+    
     writelog('Mrot'+ str(Mrot))
     
-    Mworld = Mtrans * Mrot.to_4x4()
+    # B2.79 - Mworld = Mtrans * Mrot.to_4x4()
+    Mworld = Mtrans @ Mrot.to_4x4()
     
     Mrot_relX = mathutils.Matrix.Rotation(Obj_Angle[0], 3, 'X') # Local (bez. auf Base)
     Mrot_relY = mathutils.Matrix.Rotation(Obj_Angle[1], 3, 'Y') # 0,20,35 = X = -C, Y = -B, Z = -A
     Mrot_relZ = mathutils.Matrix.Rotation(Obj_Angle[2], 3, 'Z')
-    Mrot_rel = Mrot_relZ * Mrot_relY * Mrot_relX # KUKA Erg.
+    
+    # B2.79 - Mrot_rel = Mrot_relZ * Mrot_relY * Mrot_relX # KUKA Erg.
+    Mrot_rel = Mrot_relZ @ Mrot_relY @ Mrot_relX # KUKA Erg.
+    
+    
     writelog('Mrot_rel'+ str(Mrot_rel))
 
-    Mrot_abs = Mrot_rel.transposed() * Mrot.transposed()       
+    # B2.79 - Mrot_abs = Mrot_rel.transposed() * Mrot.transposed()       
+    Mrot_abs = Mrot_rel.transposed() @ Mrot.transposed()       
+    
+    
     Mrot_abs = Mrot_abs.transposed()
     rotEuler =Mrot_abs.to_euler('XYZ')
     
@@ -362,7 +387,10 @@ def get_absolute(Obj_Koord, Obj_Angle, objBase, BASEPos_Koord, BASEPos_Angle):
     writelog('rotEuler[1] :'+ str(rotEuler[1]*360/(2*math.pi)))
     writelog('rotEuler[2] :'+ str(rotEuler[2]*360/(2*math.pi)))
         
-    Vtrans_abs = Mworld *Vtrans_rel
+    # B2.79 - Vtrans_abs = Mworld *Vtrans_rel
+    Vtrans_abs = Mworld @ Vtrans_rel
+    
+    
     writelog('Vtrans_abs :'+ str(Vtrans_abs))
     
     writelog('get_absolute done')
@@ -414,52 +442,54 @@ class ObjectSettings(bpy.types.PropertyGroup): # self, context,
     
     # Access it e.g. like
     # bpy.context.object.kuka.PATHPTS
-    
-    #
         
-    ID = bpy.props.IntProperty()
+    ID: bpy.props.IntProperty()
+    # https://wiki.blender.org/wiki/Reference/Release_Notes/2.80/Python_API/Addons
+    # Classes that contain properties from bpy.props now use Python's type annotations (see PEP 526) and should be assigned using a single colon : in Blender 2.8x instead of equals = as was done in 2.7x.
+    # B279: ID = bpy.props.IntProperty()
+    
     # type: BASEPos, PTP, HOMEPos, ADJUSTMENTPos
     #type = bpy.props.StringProperty()
-    ORIGINType = bpy.props.EnumProperty(
+    ORIGINType : bpy.props.EnumProperty(
         items=(
             ('BASEPos', "Base Position", "coordinates relative to Base-Position"),
             ('SAFEPos', "Safe Position", "coordinates relative to Safe-Position"),
             ('HOMEPos', "Home Position", "coordinates relative to Home-Position"),
             ('ADJUSTMENTPos', "Adjustment Position", "coordinates relative to Adjustment-Position"),
-        )
+        ) # type: annotation
     )
     
     # LOADPTS[1]={FX NAN, FY NAN, FZ NAN, TX NAN, TY NAN, TZ NAN }
     # bpy.data.objects['PTPObj_001'].PATHPTS.LOADPTS[:] 
-    LOADPTS = bpy.props.IntVectorProperty(size=6)
-    LOADPTSmsk = bpy.props.BoolVectorProperty(size=6) # fuer NAN Eintrag
+    LOADPTS : bpy.props.IntVectorProperty(size=6) # type: annotation
+    LOADPTSmsk : bpy.props.BoolVectorProperty(size=6) # fuer NAN Eintrag
     LOADPTSmsk = (False, False, False, False, False, False)
     
     # TTIMEPTS[1]=0.2
-    TIMEPTS = bpy.props.FloatProperty()
+    TIMEPTS : bpy.props.FloatProperty()
     
     # STOPPTS[1]=1
-    STOPPTS = bpy.props.BoolProperty()
+    STOPPTS : bpy.props.BoolProperty()
     STOPPTS = 'False'
     
     # ACTIONMSK[1]=0
-    ACTIONMSK = bpy.props.BoolProperty()
+    ACTIONMSK : bpy.props.BoolProperty()
     ACTIONMSK = 'False'
     
     # RouteName
-    RouteName = bpy.props.StringProperty()
+    RouteName : bpy.props.StringProperty()
     
     # RouteNbr
-    RouteNbr = bpy.props.IntProperty()  
+    RouteNbr : bpy.props.IntProperty()  
     
-    PATHPTSloc = bpy.props.FloatVectorProperty(name="Location",
+    PATHPTSloc : bpy.props.FloatVectorProperty(name="Location",
         default=(0.0, 0.0, 0.0),
         options={'ANIMATABLE'}, 
         subtype='TRANSLATION', 
         size=3,
         update=None)
         
-    PATHPTSrot = bpy.props.FloatVectorProperty(name="Rotation",
+    PATHPTSrot : bpy.props.FloatVectorProperty(name="Rotation",
         default=(0.0, 0.0, 0.0),
         #min=(-10.0,-10.0,-10.0, -180.0, -180.0, -180.0),
         #max=(+10.0,+10.0,+10.0, 180.0, 180.0, 180.0),
@@ -472,8 +502,10 @@ class ObjectSettings(bpy.types.PropertyGroup): # self, context,
 
 bpy.utils.register_class(ObjectSettings)
 
-bpy.types.Object.kuka = \
-    bpy.props.PointerProperty(type=ObjectSettings) 
+#bpy.types.Object.kuka = \
+#    bpy.props.PointerProperty(type=ObjectSettings) 
+
+bpy.types.Object.kuka : bpy.props.PointerProperty(type=ObjectSettings) 
     
         
 def WtF_KeyPos(Keyword, KeyPos_Koord, KeyPos_Angle, filepath, FileExt, FileMode):            
@@ -818,7 +850,8 @@ def ApplyScale(objCurve):
     
     # nur Kurve auswaehlen
     bpy.ops.object.select_all(action='DESELECT')
-    objCurve.select = True
+    # B2.79 - objCurve.select = True
+    objCurve.select_set(True)
     bpy.context.scene.objects.active = objCurve
     # Scaling (nur bei Export noetig)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
@@ -851,16 +884,22 @@ def SetOrigin(sourceObj, targetObj):
       
     bpy.ops.object.select_all(action='DESELECT')  
     # 2. setzen des sourceObj Origin auf  vertex[0] von targetObj:
-    targetObj.select = True 
-    
+    # B2.79 - targetObj.select = True 
+    targetObj.select_set(True) 
+     
     bpy.context.scene.objects.active = targetObj
-    targetObj.data.vertices[0].select= True
+    # B2.79 - targetObj.data.vertices[0].select= True
+    targetObj.data.vertices[0].select_set(True)
+    
     # Achtung: Blender"Bug": Wechsel in Edit mode nachdem Vertex ausgewaehlt wurde!
     bpy.ops.object.mode_set(mode='EDIT', toggle=True)# 
     bpy.ops.view3d.snap_cursor_to_selected() 
-    targetObj.data.vertices[0].select= False
+    # B2.79 - targetObj.data.vertices[0].select= False
+    targetObj.data.vertices[0].select_set(False)
+    
     bpy.ops.object.mode_set(mode='EDIT', toggle=True) #
-    sourceObj.select = True 
+    # B2.79 - sourceObj.select = True 
+    sourceObj.select_set(True)
     
     # Sicherstellen das wir uns im Object Mode befinden:
     #original_mode = bpy.context.mode
@@ -1100,7 +1139,7 @@ def replace_CP(objCurve, dataPATHPTS_Loc):
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
       
     bpy.ops.object.select_all(action='DESELECT')  
-    objCurve.select = True 
+    objCurve.select_set(True) # B2.79 - objCurve.select = True 
     bpy.context.scene.objects.active = objCurve
     
     #bpy.data.objects['BezierCircle'].select=True
@@ -1278,9 +1317,11 @@ def AnimateOBJScaling(TargetObjList):
         
     # 1. alle vorhandenen Keyframes fuer das Objekt loeschen bevor neue gesetzt werden:
     for n in range(len(TargetObjList)):
-        bpy.data.objects[TargetObjList[n]].select = True #objEmpty_A6.select = True
+        # B2.79 - bpy.data.objects[TargetObjList[n]].select = True #objEmpty_A6.select = True
+        bpy.data.objects[TargetObjList[n]].select_set(True) #objEmpty_A6.select = True
+        
         bpy.ops.anim.keyframe_clear_v3d() #Remove all keyframe animation for selected objects
-        bpy.data.objects[TargetObjList[n]].select = False
+        bpy.data.objects[TargetObjList[n]].select_set(False)
     
     # 1. alle Objekte im scaling minimieren:
     for n in range(len(TargetObjList)):
@@ -1335,7 +1376,9 @@ def SetKeyFrames(objEmpty_A6, TargetObjList, TIMEPTS):
     
     bpy.context.scene.objects.active = objEmpty_A6
     
-    objEmpty_A6.select = True
+    # B2.79 - objEmpty_A6.select = True
+    objEmpty_A6.select_set(True)
+    
     bpy.ops.anim.keyframe_clear_v3d() #Remove all keyframe animation for selected objects
 
     ob = bpy.context.active_object
@@ -1438,7 +1481,8 @@ def create_PATHPTSObj(dataPATHPTS_Loc, dataPATHPTS_Rot, PATHPTSCountFile, BASEPo
         candidate_list = PATHPTSObjList[PATHPTSCountFile: PATHPTSCountFile+zuViel]
         # select them only.
         for object_name in candidate_list:
-            bpy.data.objects[object_name].select = True 
+            # B2.79 - bpy.data.objects[object_name].select = True 
+            bpy.data.objects[object_name].select_set(True)
         # remove all selected.
         bpy.ops.object.delete(use_global=True)     # True, damit das Objekt auch aus dem DATABLOCK geloescht wird.
         
@@ -1450,7 +1494,9 @@ def create_PATHPTSObj(dataPATHPTS_Loc, dataPATHPTS_Rot, PATHPTSCountFile, BASEPo
         if (countPATHPTSObj-1) >= n: # Wenn ein PATHPTS Objekt vorhandenen ist,
             # Waehle eine PATHPTS Objekt aus:
             bpy.data.objects[PATHPTSObjList[n]].rotation_mode =RotationModePATHPTS
-            bpy.data.objects[PATHPTSObjList[n]].select
+            # B2.79 - bpy.data.objects[PATHPTSObjList[n]].select
+            bpy.data.objects[PATHPTSObjList[n]].select_set(True)
+            
             writelog('Waehle Objekt aus: ' + str(PATHPTSObjList[n]))
             
             if (PATHPTSCountFile-1) >= n: # Wenn ein Datenpunkt (PATHPTS) im File da ist, uebertrage loc und rot auf PATHPTSObj
@@ -1703,7 +1749,8 @@ class KUKA_OT_Export (bpy.types.Operator, ExportHelper):
         #--------------------------------------------------------------------------------
         
         bpy.ops.object.select_all(action='DESELECT')
-        objEmpty_A6.select=True
+        # B2.79 - objEmpty_A6.select=True
+        objEmpty_A6.select_set(True)
         bpy.context.scene.objects.active = objEmpty_A6
         writelog('KUKA_OT_Export done')
         return {'FINISHED'}
@@ -1823,7 +1870,8 @@ class KUKA_OT_Import (bpy.types.Operator, ImportHelper): # OT fuer Operator Type
         replace_CP(objCurve, PathPoint)  #relativ, weil Origin der Kurve auf BasePos liegt!
         
         bpy.ops.object.select_all(action='DESELECT')
-        objEmpty_A6.select=True
+        # B2.79 - objEmpty_A6.select=True
+        objEmpty_A6.select_set(True)
         bpy.context.scene.objects.active = objEmpty_A6
         #--------------------------------------------------------------------------------
         writelog('KUKA_OT_Import done')
@@ -1910,7 +1958,9 @@ class KUKA_OT_RefreshButton (bpy.types.Operator):
         replace_CP(objCurve, PathPoint)  #relativ, weil Origin der Kurve auf BasePos liegt!
         
         bpy.ops.object.select_all(action='DESELECT')
-        objEmpty_A6.select=True
+        # B2.79 - objEmpty_A6.select=True
+        objEmpty_A6.select_set(True)
+        
         bpy.context.scene.objects.active = objEmpty_A6
         writelog('- - -KUKA_OT_RefreshButton done- - - - - - -') 
         return {'FINISHED'} 
@@ -1977,7 +2027,9 @@ def duplicate_activeSceneObject():
     new_obj.data = src_obj.data.copy()
     new_obj.animation_data_clear()
     new_obj.location = src_obj.location + Vector((0.05, 0.05, 0.05))
-    scene.objects.link(new_obj)
+    # B2.79 - scene.objects.link(new_obj)
+    scene.collection.objects.link(new_obj)
+    
     print('duplicate_activeSceneObject')
     return bpy.ops.object.duplicate(linked=0,mode='TRANSLATION') 
 
@@ -1987,7 +2039,7 @@ class Uilist_actions(bpy.types.Operator):
     bl_idname = "custom.list_action"
     bl_label = "List Action"
 
-    action = bpy.props.EnumProperty(
+    action : bpy.props.EnumProperty(
         items=(
             ('UP', "Up", ""),
             ('DOWN', "Down", ""),
@@ -2083,7 +2135,8 @@ Even worse: The object index is in alphabetic order and therefore it may change 
                 # min. 1 Objekt muss erhalten bleiben!
                 if (len(PATHPTSObjList)>1):
                     # selection
-                    bpy.data.objects[scene.custom[scene.custom_index].name].select = True
+                    # B2.79 - bpy.data.objects[scene.custom[scene.custom_index].name].select = True
+                    bpy.data.objects[scene.custom[scene.custom_index].name].select_set(True)
                     # remove it
                     bpy.ops.object.delete() 
                     info = 'Item %s removed from list' % \
@@ -2135,7 +2188,9 @@ class Uilist_selectListItemInScene(bpy.types.Operator):
         scn = context.scene
         bpy.ops.object.select_all(action='DESELECT')
         obj = bpy.data.objects[scn.custom[scn.custom_index].name]
-        obj.select = True
+        # B2.79 - obj.select = True
+        obj.select_set(True)
+        
         bpy.context.scene.objects.active = obj
 
         return{'FINISHED'}
