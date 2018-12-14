@@ -19,7 +19,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
+# 
 #  ***** END GPL LICENSE BLOCK *****
 # Version: 100R
 # Next steps:
@@ -68,6 +68,26 @@
 # TODO: Beschriftung der PATHPTS im 3D view
 # TODO: GUI Feld um die Winkel bezogen auf Base oder Tool (bez. sich auf Base) editieren zu koennen
 # writelog ueber Flag ein-/ausschalten
+
+
+
+# Changes Blender 2.79 --> 2.80:
+# changes are marked with B2.80
+# replacements:
+'''
+https://en.blender.org/index.php/Dev:2.8/Source/LayersCollections/API-Changes
+
+-context.scene.objects
++context.render_layer.objects
+
+-context.scene.objects.active
++bpy.context.view_layer.objects.active --> NOK, deshalb: bpy.context.view_layer.objects.active
+
+https://wiki.blender.org/wiki/Reference/Release_Notes/2.80/Python_API/Scene_and_Object_API
+- obj.select = True
++ obj.select_set(True)
+
+'''
 
 '''  
 ${workspace_loc:KUKA_OT_Export/src/KUKA_Tools.py}
@@ -133,8 +153,15 @@ print('\n KUKAInitBlendFileExecuted:  ' + KUKAInitBlendFileExecuted)
 # http://www.blender.org/documentation/blender_python_api_2_57_1/bpy.props.html
 
 
+# B2.80 >
+class View3DPanel:
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
 
-        
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None)
+# B2.80 <        
 
     
 def writelog(text=''):
@@ -184,17 +211,17 @@ class set_locrot (bpy.types.Operator):
     # ToDo: Achtung: nur OK bei BasePosObj; am besten weitere Properties anlegen. z.B. PATHPTSlocBase, PATHPTSlocHome, ...
      
     def execute(self, context): 
-        objActive = bpy.context.scene.objects.active
-        orgType = bpy.context.scene.objects.active.kuka.ORIGINType
+        objActive = bpy.context.view_layer.objects.active
+        orgType = bpy.context.view_layer.objects.active.kuka.ORIGINType
         
         if orgType == 'BASEPos':
-            objBase = bpy.context.scene.objects['kukaBASEPosObj']
+            objBase = bpy.context.render_layer.objects['kukaBASEPosObj']
         elif orgType == 'HOMEPos':
-            objBase = bpy.context.scene.objects['kukaHOMEPosObj']
+            objBase = bpy.context.render_layer.objects['kukaHOMEPosObj']
         elif orgType == 'SAFEPos':
-            objBase = bpy.context.scene.objects['kukaSAFEPosObj']
+            objBase = bpy.context.render_layer.objects['kukaSAFEPosObj']
         else:
-            objBase = bpy.context.scene.objects['kukaBASEPosObj'] # um Fehler abzufangen
+            objBase = bpy.context.render_layer.objects['kukaBASEPosObj'] # um Fehler abzufangen
         
         BASEPos_Koord = objBase.location
         BASEPos_Angle = objBase.rotation_euler
@@ -221,17 +248,17 @@ class get_rel_locrot (bpy.types.Operator):
     # ToDo: Achtung: nur OK bei BasePosObj; am besten weitere Properties anlegen. z.B. PATHPTSlocBase, PATHPTSlocHome, ...
      
     def execute(self, context): 
-        objActive = bpy.context.scene.objects.active
-        orgType = bpy.context.scene.objects.active.kuka.ORIGINType
+        objActive = bpy.context.view_layer.objects.active
+        orgType = bpy.context.view_layer.objects.active.kuka.ORIGINType
         
         if orgType == 'BASEPos':
-            objBase = bpy.context.scene.objects['kukaBASEPosObj']
+            objBase = bpy.context.render_layer.objects['kukaBASEPosObj']
         elif orgType == 'HOMEPos':
-            objBase = bpy.context.scene.objects['kukaHOMEPosObj']
+            objBase = bpy.context.render_layer.objects['kukaHOMEPosObj']
         elif orgType == 'SAFEPos':
-            objBase = bpy.context.scene.objects['kukaSAFEPosObj']
+            objBase = bpy.context.render_layer.objects['kukaSAFEPosObj']
         else:
-            objBase = bpy.context.scene.objects['kukaBASEPosObj'] # um Fehler abzufangen
+            objBase = bpy.context.render_layer.objects['kukaBASEPosObj'] # um Fehler abzufangen
         
         BASEPos_Koord = objBase.location
         BASEPos_Angle = objBase.rotation_euler
@@ -852,7 +879,7 @@ def ApplyScale(objCurve):
     bpy.ops.object.select_all(action='DESELECT')
     # B2.79 - objCurve.select = True
     objCurve.select_set(True)
-    bpy.context.scene.objects.active = objCurve
+    bpy.context.view_layer.objects.active = objCurve
     # Scaling (nur bei Export noetig)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     bpy.ops.object.select_all(action='DESELECT')
@@ -887,7 +914,7 @@ def SetOrigin(sourceObj, targetObj):
     # B2.79 - targetObj.select = True 
     targetObj.select_set(True) 
      
-    bpy.context.scene.objects.active = targetObj
+    bpy.context.view_layer.objects.active = targetObj
     # B2.79 - targetObj.data.vertices[0].select= True
     targetObj.data.vertices[0].select_set(True)
     
@@ -906,7 +933,7 @@ def SetOrigin(sourceObj, targetObj):
     #if original_mode!= 'OBJECT':
     #    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         
-    bpy.context.scene.objects.active = sourceObj
+    bpy.context.view_layer.objects.active = sourceObj
     
     # Sicherstellen das wir uns im Object Mode befinden:
     #original_mode = bpy.context.mode
@@ -1140,7 +1167,7 @@ def replace_CP(objCurve, dataPATHPTS_Loc):
       
     bpy.ops.object.select_all(action='DESELECT')  
     objCurve.select_set(True) # B2.79 - objCurve.select = True 
-    bpy.context.scene.objects.active = objCurve
+    bpy.context.view_layer.objects.active = objCurve
     
     #bpy.data.objects['BezierCircle'].select=True
     
@@ -1325,7 +1352,7 @@ def AnimateOBJScaling(TargetObjList):
     
     # 1. alle Objekte im scaling minimieren:
     for n in range(len(TargetObjList)):
-        bpy.context.scene.objects.active = bpy.data.objects[TargetObjList[n]]
+        bpy.context.view_layer.objects.active = bpy.data.objects[TargetObjList[n]]
         ob = bpy.context.active_object
         ob.scale =   (0.2, 0.2, 0.2) 
         ob.keyframe_insert(data_path="scale", index=-1, frame=1) #startframe
@@ -1333,7 +1360,7 @@ def AnimateOBJScaling(TargetObjList):
     # 2. 
     for n in range(len(TargetObjList)):
         
-        bpy.context.scene.objects.active = bpy.data.objects[TargetObjList[n]]
+        bpy.context.view_layer.objects.active = bpy.data.objects[TargetObjList[n]]
         ob = bpy.context.active_object
                 
         #wann:
@@ -1374,7 +1401,7 @@ def SetKeyFrames(objEmpty_A6, TargetObjList, TIMEPTS):
     raw_time=[]
     frame_number=[]
     
-    bpy.context.scene.objects.active = objEmpty_A6
+    bpy.context.view_layer.objects.active = objEmpty_A6
     
     # B2.79 - objEmpty_A6.select = True
     objEmpty_A6.select_set(True)
@@ -1579,6 +1606,7 @@ class KUKA_OT_InitBlendFile(bpy.types.Operator):
         return (KUKAInitBlendFileExecuted =='False') # Test, ob InitBlendFile ausgefuehrt wurde.
     
     def execute(self, context):  
+        # ToDo: global notwendig wenn die variablen eh den einzelnen Funktionen uebergeben werden?
         global PATHPTSObjName, objBase, objSafe, objCurve, objHome, objEmpty_A6
         global Mode, RotationModeBase, RotationModePATHPTS, RotationModeEmpty_Zentralhand_A6, RotationModeTransform
         global Vorz1, Vorz2, Vorz3
@@ -1751,7 +1779,7 @@ class KUKA_OT_Export (bpy.types.Operator, ExportHelper):
         bpy.ops.object.select_all(action='DESELECT')
         # B2.79 - objEmpty_A6.select=True
         objEmpty_A6.select_set(True)
-        bpy.context.scene.objects.active = objEmpty_A6
+        bpy.context.view_layer.objects.active = objEmpty_A6
         writelog('KUKA_OT_Export done')
         return {'FINISHED'}
      
@@ -1872,7 +1900,7 @@ class KUKA_OT_Import (bpy.types.Operator, ImportHelper): # OT fuer Operator Type
         bpy.ops.object.select_all(action='DESELECT')
         # B2.79 - objEmpty_A6.select=True
         objEmpty_A6.select_set(True)
-        bpy.context.scene.objects.active = objEmpty_A6
+        bpy.context.view_layer.objects.active = objEmpty_A6
         #--------------------------------------------------------------------------------
         writelog('KUKA_OT_Import done')
         return {'FINISHED'} 
@@ -1886,8 +1914,8 @@ class KUKA_OT_SelectPath(bpy.types.Operator):
    
     def execute(self, context):  
         bpy.ops.object.select_all(action='DESELECT')
-        bpy.context.scene.objects.active = bpy.context.scene.objects[bpy.context.scene.pathname]
-        bpy.context.scene.objects.active.select=True
+        bpy.context.view_layer.objects.active = bpy.context.render_layer.objects[bpy.context.scene.pathname]
+        bpy.context.view_layer.objects.active.select=True
         objCurve    = bpy.data.objects[bpy.context.scene.pathname]
         print('\n objCurve.name: ' + str(objCurve.name))
         info = 'pathname Button: %s selected' % (bpy.context.scene.pathname)
@@ -1961,7 +1989,7 @@ class KUKA_OT_RefreshButton (bpy.types.Operator):
         # B2.79 - objEmpty_A6.select=True
         objEmpty_A6.select_set(True)
         
-        bpy.context.scene.objects.active = objEmpty_A6
+        bpy.context.view_layer.objects.active = objEmpty_A6
         writelog('- - -KUKA_OT_RefreshButton done- - - - - - -') 
         return {'FINISHED'} 
         
@@ -2015,7 +2043,7 @@ class KUKA_OT_animateptps (bpy.types.Operator):
 
 # return name of selected object
 def get_activeSceneObject():
-    return bpy.context.scene.objects.active.name
+    return bpy.context.view_layer.objects.active.name
 
 # duplicate selected object
 def duplicate_activeSceneObject():
@@ -2191,7 +2219,7 @@ class Uilist_selectListItemInScene(bpy.types.Operator):
         # B2.79 - obj.select = True
         obj.select_set(True)
         
-        bpy.context.scene.objects.active = obj
+        bpy.context.view_layer.objects.active = obj
 
         return{'FINISHED'}
 
@@ -2209,7 +2237,7 @@ class Uilist_selectSceneItemInList(bpy.types.Operator):
         if PATHPTSObjList!="":
             
             for i in range(len(PATHPTSObjList)):
-                if PATHPTSObjList[i] == bpy.context.scene.objects.active.name:
+                if PATHPTSObjList[i] == bpy.context.view_layer.objects.active.name:
                     bpy.context.scene.custom_index = i
 
         return{'FINISHED'}
@@ -2228,20 +2256,28 @@ class UL_items(UIList):
 
 
 # draw the panel
-class KUKA_PT_Panel(bpy.types.Panel):
+# B.279 - class KUKA_PT_panel(bpy.types.Panel):
+class KUKAToolPanel(View3DPanel, bpy.types.Panel):
+
 #class UIListPanelExample(Panel):
     """Creates a Panel in the Object properties window"""
-    bl_idname = 'OBJECT_PT_my_panel'
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-    bl_category = "KUKA Tools"
-    bl_label = "KUKA Tools"
+    
+
+    bl_idname = 'KUKA_PT_panel'
+    #bl_space_type = 'VIEW_3D'
+    #bl_region_type = 'TOOLS'
+    #bl_category = "KUKATools"
+    bl_label = "KUKA-Tools"
+    
+    # B2.80:
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    
     
     def draw(self, context):
         
         '''
         writelog('_____________________________________________________________________________')
-        writelog('FUNKTIONSAUFRUF - KUKA_PT_Panel')
+        writelog('FUNKTIONSAUFRUF - KUKA_PT_panel')
         '''
         ob = context.object
         layout = self.layout
@@ -2250,7 +2286,7 @@ class KUKA_PT_Panel(bpy.types.Panel):
         kuka = bpy.data.objects # bpy.types.Object.kuka
         # kuka['Cube'].kuka.
         
-        obj = bpy.context.scene.objects.active
+        obj = bpy.context.view_layer.objects.active
         
         # Liste initialisieren:
         # PATHPTSObjName ist erst nach druecken des InitBlendFile Button bekannt
@@ -2412,7 +2448,7 @@ classes = (
     Uilist_selectListItemInScene,
     Uilist_selectSceneItemInList,
     UL_items,
-    KUKA_PT_Panel,
+    #KUKAToolPanel,
     Uilist_getPTPsFromScene,
     Uilist_loadFileList,
     CustomProp,
@@ -2426,6 +2462,8 @@ def register():
         bpy.types.Scene.custom = CollectionProperty(type=CustomProp)
         bpy.types.Scene.custom_index = IntProperty()
         bpy.types.Scene.pathname = StringProperty()
+        # B2.80:
+        #bpy.utils.register_class(KUKAToolPanel)
 
 def unregister():
     for c in reversed(__classes__):
@@ -2433,6 +2471,8 @@ def unregister():
         bpy.types.Scene.custom.unregister_class(c)
         bpy.types.Scene.custom_index.unregister_class(c)
         bpy.types.Scene.pathname.unregister_class(c)
+        # B2.80:
+        #bpy.utils.unregister_class(KUKAToolPanel)
     
 #if __name__ == "__main__":
 #    register()
@@ -2442,3 +2482,6 @@ if __name__ == "__main__":  # only for live edit.
     for cls in classes:
         register_class(cls)
     
+# B2.80 TEST - bpy.utils.register_class(KUKAToolPanel)
+bpy.utils.register_class(KUKAToolPanel)
+
