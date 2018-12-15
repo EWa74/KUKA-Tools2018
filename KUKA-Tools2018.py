@@ -98,7 +98,7 @@ bpy.data.curves[bpy.context.active_object.data.name].splines[0].bezier_points[0]
 bl_info = { 
     "name": "KUKA_OT_Export",
     "author": "Eric Wahl",
-    "version": (1, 0, 2),
+    "version": (1, 0, 3),
     "blender": (2, 80, 0),
     "api": 36147,
     "location": "View3D >Objects >KUKA_Tools",
@@ -1621,7 +1621,7 @@ class KUKA_OT_InitBlendFile(bpy.types.Operator):
         objSafe     = bpy.data.objects['kukaSAFEPosObj']
         
         #bpy.types.Scene.pathname       = StringProperty(name="PathName")
-        #bpy.context.scene.pathname = 'BezierCircle'
+        bpy.context.scene.pathname = 'BezierCircle' # update 1.0.2/3
         objCurve    = bpy.data.objects[bpy.context.scene.pathname]
         #objCurve     = bpy.data.objects['BezierCircle']
         #bpy.context.scene.pathname = 'BezierCircle'
@@ -1922,6 +1922,278 @@ class KUKA_OT_SelectPath(bpy.types.Operator):
         self.report({'INFO'}, info)
         return {'FINISHED'}     
 
+# ------------------------------------------------------------------------------------------------------------------------------
+# update 1.02/3:
+
+class KUKA_OT_MovePTPtoPath(bpy.types.Operator):
+    bl_idname = "object.kuka_move_ptp"
+    bl_label = "kuka_move_PTP_to_path" #Toolbar - Label
+    bl_description = "move PTP to path" # Kommentar im Specials Kontextmenue
+    bl_options = {'REGISTER', 'UNDO'} 
+   
+    def execute(self, context):  
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.bpy.context.view_layer.objects.active = bpy.context.render_layer.objects[bpy.context.scene.pathname]
+        bpy.bpy.context.view_layer.objects.active.select=True
+        objCurve    = bpy.data.objects[bpy.context.scene.pathname]
+        objPTPs = ...
+        
+        print('\n objCurve.name: ' + str(objCurve.name))
+        
+        
+        # 1. PATHPTSObjList bestimmen (Achtung: funktioniert nur solange es nur eine PTP-curve gibt!)
+        objects = bpy.data.objects
+        PATHPTSObjList = fnmatch.filter( [objects [i].name for i in range(len(objects ))] , 'PTPObj_*')
+        
+        # 2. Punkte der neuen pathcurve bestimmmen (Anzahl, loc, rot)
+        CountCPsNew = len(objCurve)  # CPs = Anzahl der ControlPoint der Kurve
+        
+        # 3. Anzahl der PTP Objekte auf die neue Kurve angleichen
+        CountPTPs = len(objCurve) # PTPs = Amount of already existing PTPObjs
+
+        bezierCurve = bpy.data.curves[objCurve.name] #bpy.context.active_object #.data.name
+        bpy.data.objects[objCurve.name].rotation_mode =RotationModePATHPTS
+        
+        original_type = bpy.context.area.type
+        bpy.context.area.type = "VIEW_3D" 
+        
+        # Sicherstellen das wir uns im Object Mode befinden:
+        original_mode = bpy.context.mode
+        if original_mode!= 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+          
+        bpy.ops.object.select_all(action='DESELECT')  
+        objCurve.select = True 
+        bpy.bpy.context.view_layer.objects.active = objCurve
+        #bpy.data.objects['BezierCircle'].select=True
+        bpy.ops.object.mode_set(mode='EDIT', toggle=False) # switch to edit mode
+        
+        bezierCurve.dimensions = '3D'
+        #bzs = bpy.data.curves[bpy.context.active_object.data.name].splines[0].bezier_points
+        bzs = bezierCurve.splines[0].bezier_points
+        PATHPTSCount = len(bzs)
+        # Achtung: noch im EDITMode der Kurve!
+        # loc/rot der CPs sammeln:
+        
+        # sicherstellen das kein ControlPoint selektiert ist:
+        for n in range(PATHPTSCount):
+            bzs[n].select_control_point= False
+            bzs[n].select_right_handle = False
+            bzs[n].select_left_handle = False             
+        
+        
+        for n in range(PATHPTSCount):
+            dataPATHPTS_Loc = dataPATHPTS_Loc + [bzs[n].co]
+            
+            
+            
+            dataPATHPTS_Rot = dataPATHPTS_Rot + [bzs[n].handle_left - bzs[n].handle_right]
+            dataPATHPTS_Rot[n] =  
+            dataPATHPTS_Loc = dataPATHPTS_Loc + [mList[i]] 
+            # pruefen ob local oder global und ggf. transform: .co und handles sind globale Koordinaten
+        
+        #PATHPTSCountFile = len(dataPATHPTS_Loc[:])
+        CountCP = 0
+        if CountCPsNew <= CountPTPs:
+            CountCP = CountPTPs
+        if CountCPsNew > CountPTPs:
+            CountCP = CountCPsNew
+        
+        # kuerze die Anzahl der aktuellen PTPObjs auf die CPs der Kurve, wenn noetig
+        if CountCPsNew < CountPTPs:
+            delList =[]
+            zuViel = CountPTPs - CountCPsNew
+            delList = [CountCPsNew]*(CountCPsNew+zuViel)
+            
+            for n in range(CountCPsNew, CountCPsNew+zuViel, 1):      
+                acitve PTPObj.select.del
+                bpy.bpy.context.view_layer.objects.active = PATHPTSObjList[n]
+                bzs[delList[n]].select_control_point=True
+                bzs[delList[n]].select_right_handle = True
+                bzs[delList[n]].select_left_handle = True
+                #bpy.ops.curve.delete(type='SELECTED') # erzeugte Fehler bei Wechsel von Version 2.68-2 auf 2.69
+                #bpy.ops.curve.delete()
+                bpy.ops.object.delete(use_global=False)
+            CountCP = len(bzs)
+        
+        for n in range(CountCP):
+            if (PATHPTSCount-1) >= n: # Wenn ein Datenpunkt auf der vorhandenen Kurve da ist,
+                # Waehle einen Punkt auf der vorhandenen Kurve aus:
+                bzs[n].select_control_point = True
+                writelog(bzs[n])
+                writelog('Select control point:' + str(bzs[n].select_control_point))
+                
+                bzs[n].handle_left_type='VECTOR'
+                writelog(bzs[n].handle_left_type)
+                
+                bzs[n].handle_right_type='VECTOR'
+                writelog(bzs[n].handle_right_type)
+                
+                if (PATHPTSCountFile-1) >= n: # Wenn ein Datenpunkt im File da ist, nehm ihn und ersetzte damit den aktellen Punkt
+                    writelog()
+                    bzs[n].handle_left  =  dataPATHPTS_Loc[n-1]
+                    bzs[n].co           = dataPATHPTS_Loc[n] 
+                    bzs[n].handle_right = dataPATHPTS_Loc[n-PATHPTSCountFile+1] 
+                    
+                    bzs[n].select_control_point = False  
+                    
+            else: # wenn kein Kurvenpunkt zum ueberschreiben da ist, generiere einen neuen und schreibe den File-Datenpunkt
+                bzs.add(1) 
+            
+                bzs[n].handle_left = dataPATHPTS_Loc[n-1] 
+                bzs[n].co =  dataPATHPTS_Loc[n] 
+                bzs[n].handle_right = dataPATHPTS_Loc[n-PATHPTSCountFile+1] 
+                
+                bzs[n].handle_right_type='VECTOR'
+                bzs[n].handle_left_type='VECTOR'
+        
+        if original_mode!= 'OBJECT':
+            bpy.ops.object.mode_set(mode='EDIT', toggle=True)
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # switch back to object mode
+        
+        bpy.context.area.type = original_type 
+            
+        writelog('adapt_PTPs_to_Curve done')
+        writelog('_____________________________________________________________________________')    
+        # kuerze die Anzahl der aktuellen PTPObjs auf die ausgewaehlte Kurve, wenn noetig
+        
+        
+                
+        # 4. pathcurve koordinaten auf die PTP Objekte kopieren
+        
+        # ToDo: PTP Objekt: Mesh-Daten im Script speichern um nicht auf min. 1 vorhandenes im .blend angewiesen zu sein
+        
+        
+        info = 'PTPObj moved to path: %s' % (bpy.context.scene.pathname)
+        self.report({'INFO'}, info)
+        return {'FINISHED'}  
+
+
+def adapt_PTPs_to_Curve(objCurve, dataPATHPTS_Loc):
+    
+    # dataPATHPTS_Loc: relativ, weil Origin der Kurve auf BasePos liegt!
+    writelog('_____________________________________________________________________________')
+    writelog('adapt_PTPs_to_Curve')
+    #bpy.data.curves[bpy.context.active_object.data.name].user_clear()
+    #bpy.data.curves.remove(bpy.data.curves[bpy.context.active_object.data.name])
+    
+    # 1. PATHPTSObjList bestimmen (Achtung: funktioniert nur solange es nur eine PTP-curve gibt!)
+    objects = bpy.data.objects
+    PATHPTSObjList = fnmatch.filter( [objects [i].name for i in range(len(objects ))] , 'PTPObj_*')
+    
+        
+    bezierCurve = bpy.data.curves[objCurve.name] #bpy.context.active_object #.data.name
+    bpy.data.objects[objCurve.name].rotation_mode =RotationModePATHPTS
+    
+    original_type = bpy.context.area.type
+    bpy.context.area.type = "VIEW_3D" 
+    
+    # Sicherstellen das wir uns im Object Mode befinden:
+    original_mode = bpy.context.mode
+    if original_mode!= 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+      
+    bpy.ops.object.select_all(action='DESELECT')  
+    objCurve.select = True 
+    bpy.bpy.context.view_layer.objects.active = objCurve
+    
+    #bpy.data.objects['BezierCircle'].select=True
+    
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False) # switch to edit mode
+    
+    bezierCurve.dimensions = '3D'
+    #bzs = bpy.data.curves[bpy.context.active_object.data.name].splines[0].bezier_points
+    bzs = bezierCurve.splines[0].bezier_points
+    PATHPTSCount = len(bzs)
+    
+    # sicherstellen das kein ControlPoint selektiert ist:
+    for n in range(PATHPTSCount):
+        bzs[n].select_control_point= False
+        bzs[n].select_right_handle = False
+        bzs[n].select_left_handle = False             
+    CountCP = 0
+    PATHPTSCountFile = len(dataPATHPTS_Loc[:])
+    if PATHPTSCountFile <= PATHPTSCount:
+        CountCP = PATHPTSCount
+    if PATHPTSCountFile > PATHPTSCount:
+        CountCP = PATHPTSCountFile
+    
+    # kuerze die Laenge der aktuellen Kurve auf die File-Kurve, wenn noetig
+    if PATHPTSCountFile < PATHPTSCount:
+        delList =[]
+        zuViel = PATHPTSCount - PATHPTSCountFile
+        delList = [PATHPTSCountFile]*(PATHPTSCountFile+zuViel)
+        
+        for n in range(PATHPTSCountFile, PATHPTSCountFile+zuViel, 1):      
+            bzs[delList[n]].select_control_point=True
+            bzs[delList[n]].select_right_handle = True
+            bzs[delList[n]].select_left_handle = True
+            #bpy.ops.curve.delete(type='SELECTED') # erzeugte Fehler bei Wechsel von Version 2.68-2 auf 2.69
+            bpy.ops.curve.delete()
+        CountCP = len(bzs)
+    
+    for n in range(CountCP):
+        if (PATHPTSCount-1) >= n: # Wenn ein Datenpunkt auf der vorhandenen Kurve da ist,
+            # Waehle einen Punkt auf der vorhandenen Kurve aus:
+            bzs[n].select_control_point = True
+            writelog(bzs[n])
+            writelog('Select control point:' + str(bzs[n].select_control_point))
+            
+            bzs[n].handle_left_type='VECTOR'
+            writelog(bzs[n].handle_left_type)
+            
+            bzs[n].handle_right_type='VECTOR'
+            writelog(bzs[n].handle_right_type)
+            
+            if (PATHPTSCountFile-1) >= n: # Wenn ein Datenpunkt im File da ist, nehm ihn und ersetzte damit den aktellen Punkt
+                writelog()
+                bzs[n].handle_left  =  dataPATHPTS_Loc[n-1]
+                bzs[n].co           = dataPATHPTS_Loc[n] 
+                bzs[n].handle_right = dataPATHPTS_Loc[n-PATHPTSCountFile+1] 
+                
+                bzs[n].select_control_point = False  
+                
+        else: # wenn kein Kurvenpunkt zum ueberschreiben da ist, generiere einen neuen und schreibe den File-Datenpunkt
+            bzs.add(1) 
+        
+            bzs[n].handle_left = dataPATHPTS_Loc[n-1] 
+            bzs[n].co =  dataPATHPTS_Loc[n] 
+            bzs[n].handle_right = dataPATHPTS_Loc[n-PATHPTSCountFile+1] 
+            
+            bzs[n].handle_right_type='VECTOR'
+            bzs[n].handle_left_type='VECTOR'
+    
+    if original_mode!= 'OBJECT':
+        bpy.ops.object.mode_set(mode='EDIT', toggle=True)
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # switch back to object mode
+    
+    bpy.context.area.type = original_type 
+        
+    writelog('adapt_PTPs_to_Curve done')
+    writelog('_____________________________________________________________________________')
+
+
+class KUKA_OT_CreatePTPforPath(bpy.types.Operator):
+    bl_idname = "object.kuka_create_ptp"
+    bl_label = "kuka_create_PTP_for_path" #Toolbar - Label
+    bl_description = "create PTP for path" # Kommentar im Specials Kontextmenue
+    bl_options = {'REGISTER', 'UNDO'} 
+   
+    def execute(self, context):  
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.bpy.context.view_layer.objects.active = bpy.context.render_layer.objects[bpy.context.scene.pathname]
+        bpy.bpy.context.view_layer.objects.active.select=True
+        objCurve    = bpy.data.objects[bpy.context.scene.pathname]
+        print('\n objCurve.name: ' + str(objCurve.name))
+        info = 'pathname Button: %s selected' % (bpy.context.scene.pathname)
+        self.report({'INFO'}, info)
+        return {'FINISHED'}  
+    
+
+
+# ------------------------------------------------------------------------------------------------------------------------------
+
+
 class KUKA_OT_RefreshButton (bpy.types.Operator):
     ''' Import selected curve '''
     bl_idname = "object.refreshbutton"
@@ -1941,6 +2213,8 @@ class KUKA_OT_RefreshButton (bpy.types.Operator):
     def execute(self, context):  
         writelog('- - -refreshbutton - - - - - - -')
         writelog('Testlog von KUKA_OT_RefreshButton')
+        
+        objCurve    = bpy.data.objects[bpy.context.scene.pathname] # update 1.0.2/3
         
         objBase.rotation_mode     = RotationModeBase
         objSafe.rotation_mode     = RotationModePATHPTS
@@ -1962,7 +2236,25 @@ class KUKA_OT_RefreshButton (bpy.types.Operator):
         
         #dataPATHPTS_Loc, dataPATHPTS_Rot, PATHPTSCountFile = get_relative(objSafe, objSafe.location, objSafe.rotation_euler, BASEPos_Koord, BASEPos_Angle)
         
-        SetOrigin(objCurve, objBase)
+        
+        
+# ------------------------------------------------------------------------------------------------------------------------------
+# update 1.0.2/3
+        
+        if bpy.data.objects['kukaBASEPosObj'].hide == True:
+            bpy.data.objects['kukaBASEPosObj'].hide = False
+            SetOrigin(objCurve, objBase)
+            bpy.data.objects['kukaBASEPosObj'].hide = True
+        else:
+            SetOrigin(objCurve, objBase)
+        
+        
+        #SetOrigin(objCurve, objBase)
+# ------------------------------------------------------------------------------------------------------------------------------
+        
+        
+        
+        
         bpy.data.objects[objCurve.name].rotation_mode =RotationModePATHPTS
         objCurve.location       = BASEPos_Koord.x,BASEPos_Koord.y ,BASEPos_Koord.z 
         objCurve.rotation_euler = BASEPos_Angle
@@ -1990,6 +2282,15 @@ class KUKA_OT_RefreshButton (bpy.types.Operator):
         objEmpty_A6.select_set(True)
         
         bpy.context.view_layer.objects.active = objEmpty_A6
+        
+# ------------------------------------------------------------------------------------------------------------------------------
+# update 1.0.2/3        
+        # 'animateptps' button hidden; Operator called here:
+        bpy.ops.object.animateptps()
+# ------------------------------------------------------------------------------------------------------------------------------
+
+        
+        
         writelog('- - -KUKA_OT_RefreshButton done- - - - - - -') 
         return {'FINISHED'} 
         
@@ -2297,10 +2598,22 @@ class KUKAToolPanel(View3DPanel, bpy.types.Panel):
         row = layout.row(align=True)
         sub = row.row()
         sub.scale_x = 1.0
-        sub.operator("object.kuka_init_blendfile", text="init .blend")  
         
-        sub.operator("object.kuka_select_path", text="Path") 
-        layout.prop_search(context.scene, "pathname", bpy.data, "curves", "Path Name")
+# ------------------------------------------------------------------------------------------------------------------------------
+# update 1.0.2/3          
+        sub.operator("object.kuka_init_blendfile", text="init .blend")
+        
+        row = layout.row(align=True) 
+        row.prop_search(context.scene, "pathname", bpy.data, "curves", "Path")
+        row.operator("object.kuka_select_path", text="select Path")
+        
+        row1 = layout.row(align=True)
+        sub1 = row1.row()
+        sub1.scale_x = 1.0
+        #layout.label(text="")
+        sub1.operator("object.kuka_move_ptp", text="Move PTP to selected Path")  
+        sub1.operator("object.kuka_create_ptp", text="create new PTPs for selected Path") 
+# ------------------------------------------------------------------------------------------------------------------------------
         
         # ToDo: Beziercurve auswaehlen (vorher mit GreacePencil gezeichnet und konvertiert)
         # --> OK. aber: die Kurve orientiert sich an den PTPObj
@@ -2359,12 +2672,13 @@ class KUKAToolPanel(View3DPanel, bpy.types.Panel):
         
         row.operator("object.refreshbutton", icon='FILE_REFRESH')  
         
-        # Animate PTPs Button:
-        layout.label(text="Animate PTPs:")
-        row = layout.row(align=True)
-         
-        row.operator("object.animateptps")  
-        
+# ------------------------------------------------------------------------------------------------------------------------------
+# update 1.0.2/3
+        # Animate PTPs Button: -> called from 'RefreshButton' Operator
+        #layout.label(text="Animate PTPs:")
+        #row = layout.row(align=True) 
+        #row.operator("object.animateptps")  
+# ------------------------------------------------------------------------------------------------------------------------------        
         
         
 class Uilist_getPTPsFromScene(bpy.types.Operator):
